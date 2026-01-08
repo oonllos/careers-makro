@@ -7,105 +7,39 @@
 
   <style>
     :root { --max: 1100px; }
-    body {
-      margin:0;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      background:#f6f7fb;
-      color:#111;
-    }
-    header {
-      padding:64px 18px;
-      color:#fff;
-      background: linear-gradient(120deg, #4f46e5, #6366f1);
-    }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:#f6f7fb; color:#111; }
+    header { padding:64px 18px; color:#fff; background: linear-gradient(120deg, #4f46e5, #6366f1); }
     header .wrap { max-width: var(--max); margin:auto; }
     header h1 { margin:0 0 8px; font-size:40px; }
     header p { margin:0; font-size:18px; opacity:.95; }
-
     main { max-width: var(--max); margin:auto; padding:24px 18px 60px; }
 
-    .card {
-      background:#fff;
-      border-radius:16px;
-      padding:18px;
-      box-shadow:0 10px 28px rgba(0,0,0,.08);
-      margin-bottom:16px;
-    }
-
+    .card { background:#fff; border-radius:16px; padding:18px; box-shadow:0 10px 28px rgba(0,0,0,.08); margin-bottom:16px; }
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-    .pill {
-      background:#eef2ff;
-      color:#3730a3;
-      font-weight:700;
-      font-size:13px;
-      padding:6px 12px;
-      border-radius:999px;
-    }
+    .pill { background:#eef2ff; color:#3730a3; font-weight:700; font-size:13px; padding:6px 12px; border-radius:999px; }
+    .muted { opacity:.7; }
+    .hint { font-size:13px; line-height:1.45; }
 
-    input, select {
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid rgba(0,0,0,.15);
-      font-size:14px;
-    }
-
-    .btn {
-      border:0;
-      border-radius:12px;
-      padding:10px 16px;
-      font-weight:700;
-      cursor:pointer;
-    }
+    input, select { padding:10px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.15); font-size:14px; background:#fff; }
+    .btn { border:0; border-radius:12px; padding:10px 16px; font-weight:700; cursor:pointer; }
     .btn.primary { background:#111827; color:#fff; }
     .btn.ghost { background:#eef2ff; color:#3730a3; }
 
-    .grid {
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-      gap:12px;
-      margin-top:12px;
-    }
-
-    .job {
-      border:1px solid rgba(0,0,0,.1);
-      border-radius:14px;
-      padding:14px;
-    }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin-top:12px; }
+    .job { border:1px solid rgba(0,0,0,.1); border-radius:14px; padding:14px; }
     .job h3 { margin:0 0 6px; font-size:18px; }
     .meta { font-size:13px; opacity:.85; }
     .meta div { margin:2px 0; }
 
-    .muted { opacity:.7; }
-    .hint { font-size:13px; line-height:1.4; }
+    .ok { background:#ecfeff; border:1px solid rgba(8,145,178,.25); color:#155e75; padding:12px; border-radius:12px; margin-top:12px; }
+    .error { background:#fff1f2; border:1px solid rgba(190,18,60,.25); color:#9f1239; padding:12px; border-radius:12px; margin-top:12px; }
 
-    .ok {
-      background:#ecfeff;
-      border:1px solid rgba(8,145,178,.25);
-      color:#155e75;
-      padding:12px;
-      border-radius:12px;
-      margin-top:12px;
-    }
-    .error {
-      background:#fff1f2;
-      border:1px solid rgba(190,18,60,.25);
-      color:#9f1239;
-      padding:12px;
-      border-radius:12px;
-      margin-top:12px;
-    }
-
-    iframe {
-      width:100%;
-      height:1200px;
-      border:0;
-      border-radius:16px;
-    }
+    code { background:#111827; color:#fff; padding:2px 6px; border-radius:6px; }
+    iframe { width:100%; height:1200px; border:0; border-radius:16px; }
   </style>
 </head>
 
 <body>
-
 <header>
   <div class="wrap">
     <h1>ร่วมงานกับเรา</h1>
@@ -114,16 +48,13 @@
 </header>
 
 <main>
-
-  <!-- FILTER -->
   <section class="card">
     <div class="row" style="justify-content:space-between">
       <div>
         <span class="pill">ตำแหน่งว่าง</span>
         <div class="muted hint">ดึงข้อมูลจากไฟล์ CSV ใน GitHub</div>
       </div>
-      <button class="btn primary"
-        onclick="document.getElementById('apply').scrollIntoView({behavior:'smooth'})">
+      <button class="btn primary" onclick="document.getElementById('apply').scrollIntoView({behavior:'smooth'})">
         สมัครงาน
       </button>
     </div>
@@ -136,75 +67,94 @@
     </div>
   </section>
 
-  <!-- RESULT -->
   <section class="card">
     <div id="summary" class="muted">กำลังโหลดข้อมูล...</div>
     <div id="jobs" class="grid"></div>
     <div id="msg"></div>
+
+    <!-- DEBUG -->
+    <div id="debug" class="muted hint" style="margin-top:10px;"></div>
   </section>
 
-  <!-- APPLY -->
   <section class="card" id="apply">
     <span class="pill">สมัครงาน</span>
     <p class="muted">กรอกแบบฟอร์มด้านล่างได้เลย</p>
     <iframe src="https://forms.office.com/r/wabJfczd4Z" loading="lazy"></iframe>
   </section>
-
 </main>
 
 <script>
 /* ================= CONFIG ================= */
-const CSV_URL = "./" + encodeURI("ประกาศตำแหน่งงานว่างสาขา.csv");
+const CSV_FILE_NAME = "ประกาศตำแหน่งงานว่างสาขา.csv";
+const CSV_URL = "./" + encodeURI(CSV_FILE_NAME);
 
 /* ================= UTIL ================= */
-function parseCSV(text) {
+const norm = s => (s||"")
+  .toLowerCase()
+  .replace(/\uFEFF/g,"")  // BOM
+  .replace(/\s+/g,"")
+  .replace(/[_-]/g,"");
+
+function detectDelimiter(text) {
+  // ดูจากบรรทัดแรก (header) ว่า , หรือ ; อันไหนเยอะกว่า
+  const firstLine = (text.split(/\r?\n/)[0] || "");
+  const comma = (firstLine.match(/,/g) || []).length;
+  const semi  = (firstLine.match(/;/g) || []).length;
+  return semi > comma ? ";" : ",";
+}
+
+function parseCSV(text, delimiter) {
   const rows = [];
   let row=[], cur="", inQ=false;
+
   for (let i=0;i<text.length;i++) {
     const c=text[i], n=text[i+1];
+
     if (c === '"') {
       if (inQ && n === '"') { cur+='"'; i++; }
       else inQ = !inQ;
       continue;
     }
-    if (!inQ && c === ',') { row.push(cur.trim()); cur=""; continue; }
+
+    if (!inQ && c === delimiter) { row.push(cur.trim()); cur=""; continue; }
+
     if (!inQ && (c === '\n' || c === '\r')) {
       if (c === '\r' && n === '\n') i++;
       row.push(cur.trim());
-      if (row.some(v=>v)) rows.push(row);
+      if (row.some(v=>v.length>0)) rows.push(row);
       row=[]; cur=""; continue;
     }
-    cur+=c;
+
+    cur += c;
   }
-  if (cur || row.length) {
+
+  if (cur.length || row.length) {
     row.push(cur.trim());
-    if (row.some(v=>v)) rows.push(row);
+    if (row.some(v=>v.length>0)) rows.push(row);
   }
+
   return rows;
 }
-
-const norm = s => (s||"")
-  .toLowerCase()
-  .replace(/\uFEFF/g,"")
-  .replace(/\s+/g,"")
-  .replace(/[_-]/g,"");
 
 function headerIndex(headers) {
   const map={};
   headers.forEach((h,i)=>map[norm(h)]=i);
+
   const pick = arr => {
     for (const a of arr) {
-      if (norm(a) in map) return map[norm(a)];
+      const k = norm(a);
+      if (k in map) return map[k];
     }
     return -1;
   };
+
   return {
-    position: pick(["position","jobtitle","jobname","ตำแหน่ง","ตำแหน่งงาน","ชื่อตำแหน่ง"]),
-    branch:   pick(["branch","branchname","store","storename","สาขา","ชื่อสาขา"]),
+    position: pick(["position","jobtitle","jobname","title","ตำแหน่ง","ตำแหน่งงาน","ชื่อตำแหน่ง"]),
+    branch:   pick(["branch","branchname","store","storename","location","สาขา","ชื่อสาขา"]),
     province: pick(["province","provincename","จังหวัด","ชื่อจังหวัด"]),
-    area:     pick(["area","region","ภาค","ภูมิภาค","เขต"]),
+    area:     pick(["area","region","ภาค","ภูมิภาค","เขต","cluster"]),
     count:    pick(["count","vacancy","openings","จำนวน","อัตรา","อัตราว่าง"]),
-    note:     pick(["note","detail","description","หมายเหตุ","รายละเอียด","คุณสมบัติ"])
+    note:     pick(["note","detail","details","description","หมายเหตุ","รายละเอียด","คุณสมบัติ"]),
   };
 }
 
@@ -213,14 +163,16 @@ const uniq = a => [...new Set(a.filter(Boolean))].sort((x,y)=>x.localeCompare(y,
 let allJobs=[];
 
 function render() {
-  const qv=q.value.toLowerCase();
+  const qv=q.value.toLowerCase().trim();
   const av=filterArea.value, pv=filterProvince.value;
+
   const list = allJobs.filter(j=>{
-    const h=`${j.position} ${j.branch} ${j.province} ${j.area} ${j.note}`.toLowerCase();
-    return (!qv||h.includes(qv)) && (!av||j.area===av) && (!pv||j.province===pv);
+    const h = `${j.position} ${j.branch} ${j.province} ${j.area} ${j.note}`.toLowerCase();
+    return (!qv || h.includes(qv)) && (!av || j.area===av) && (!pv || j.province===pv);
   });
 
   summary.textContent = `พบ ${list.length} ตำแหน่ง (จากทั้งหมด ${allJobs.length})`;
+
   jobs.innerHTML = list.map(j=>`
     <div class="job">
       <h3>${j.position || "-"}</h3>
@@ -231,8 +183,7 @@ function render() {
         ${j.count?`<div>จำนวน: ${j.count}</div>`:""}
       </div>
       ${j.note?`<div class="muted hint">${j.note}</div>`:""}
-      <button class="btn primary"
-        onclick="document.getElementById('apply').scrollIntoView({behavior:'smooth'})">
+      <button class="btn primary" onclick="document.getElementById('apply').scrollIntoView({behavior:'smooth'})">
         สมัครตำแหน่งนี้
       </button>
     </div>
@@ -241,28 +192,57 @@ function render() {
 
 async function loadJobs() {
   try {
-    const res = await fetch(CSV_URL+"?ts="+Date.now(), {cache:"no-store"});
-    if (!res.ok) throw new Error("HTTP "+res.status);
-    const rows = parseCSV(await res.text());
-    const idx = headerIndex(rows[0]);
+    const res = await fetch(CSV_URL + "?ts=" + Date.now(), { cache:"no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const text = await res.text();
+    const delimiter = detectDelimiter(text);
+    const rows = parseCSV(text, delimiter);
+
+    if (!rows.length) throw new Error("ไฟล์ CSV ว่าง หรืออ่านไม่ออก");
+
+    const headers = rows[0];
+    const idx = headerIndex(headers);
+
+    // DEBUG แสดงหัวคอลัมน์ + delimiter + mapping
+    debug.innerHTML =
+      `ไฟล์: <code>${CSV_FILE_NAME}</code> | ตัวคั่น: <code>${delimiter}</code><br>` +
+      `หัวคอลัมน์ที่พบ: <code>${headers.join(" | ")}</code><br>` +
+      `mapping: position=${idx.position}, branch=${idx.branch}, province=${idx.province}, area=${idx.area}, count=${idx.count}, note=${idx.note}`;
+
+    // ถ้าจับไม่ได้เลย ให้แจ้งชัด ๆ
+    if (idx.position === -1 && idx.branch === -1 && idx.province === -1) {
+      throw new Error("โค้ดจับคอลัมน์หลักไม่เจอ (ตำแหน่ง/สาขา/จังหวัด) — ดูหัวคอลัมน์จาก Debug แล้วแจ้งผมได้");
+    }
 
     allJobs = rows.slice(1).map(r=>({
-      position:r[idx.position]||"",
-      branch:r[idx.branch]||"",
-      province:r[idx.province]||"",
-      area:r[idx.area]||"",
-      count:r[idx.count]||"",
-      note:r[idx.note]||""
-    }));
+      position: idx.position>=0 ? (r[idx.position]||"") : "",
+      branch:   idx.branch>=0   ? (r[idx.branch]||"")   : "",
+      province: idx.province>=0 ? (r[idx.province]||"") : "",
+      area:     idx.area>=0     ? (r[idx.area]||"")     : "",
+      count:    idx.count>=0    ? (r[idx.count]||"")    : "",
+      note:     idx.note>=0     ? (r[idx.note]||"")     : "",
+    })).filter(j => (j.position || j.branch || j.province || j.area || j.note || j.count));
 
+    // เติมตัวกรอง
+    filterArea.innerHTML = `<option value="">ทุกพื้นที่</option>`;
+    filterProvince.innerHTML = `<option value="">ทุกจังหวัด</option>`;
     uniq(allJobs.map(j=>j.area)).forEach(v=>filterArea.insertAdjacentHTML("beforeend",`<option>${v}</option>`));
     uniq(allJobs.map(j=>j.province)).forEach(v=>filterProvince.insertAdjacentHTML("beforeend",`<option>${v}</option>`));
 
     msg.innerHTML = `<div class="ok">โหลดข้อมูลตำแหน่งสำเร็จ</div>`;
     render();
-  } catch(e) {
-    msg.innerHTML = `<div class="error">โหลดข้อมูลจาก CSV ไม่สำเร็จ<br>${e}</div>`;
+  } catch (e) {
+    console.error(e);
     summary.textContent = "โหลดข้อมูลไม่สำเร็จ";
+    jobs.innerHTML = "";
+    msg.innerHTML = `
+      <div class="error">
+        <b>โหลดข้อมูลจาก CSV ไม่สำเร็จ</b><br>
+        <span class="hint">${e.message || e}</span><br><br>
+        <span class="hint">เช็กว่าเปิดไฟล์ได้: <code>.../${CSV_FILE_NAME}</code></span>
+      </div>
+    `;
   }
 }
 
@@ -270,7 +250,7 @@ async function loadJobs() {
 q.oninput = render;
 filterArea.onchange = render;
 filterProvince.onchange = render;
-clearBtn.onclick = ()=>{q.value="";filterArea.value="";filterProvince.value="";render();};
+clearBtn.onclick = ()=>{ q.value=""; filterArea.value=""; filterProvince.value=""; render(); };
 
 loadJobs();
 </script>
