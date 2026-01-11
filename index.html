@@ -17,7 +17,7 @@
     .card { background:#fff; border-radius:16px; padding:18px; box-shadow:0 10px 28px rgba(0,0,0,.08); margin-bottom:16px; }
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .pill { background:#eef2ff; color:#3730a3; font-weight:700; font-size:13px; padding:6px 12px; border-radius:999px; }
-    .muted { opacity:.7; }
+    .muted { opacity:.75; }
 
     input, select { padding:10px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.15); font-size:14px; background:#fff; }
     .btn { border:0; border-radius:12px; padding:10px 16px; font-weight:700; cursor:pointer; }
@@ -31,6 +31,17 @@
     .meta div { margin:2px 0; }
 
     iframe { width:100%; height:1200px; border:0; border-radius:16px; background:#fff; }
+
+    .debug {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      background:#0b1020;
+      color:#e5e7eb;
+      padding:12px;
+      border-radius:12px;
+      margin-top:12px;
+    }
   </style>
 </head>
 
@@ -47,7 +58,7 @@
     <div class="row" style="justify-content:space-between">
       <div>
         <span class="pill">ตำแหน่งว่าง</span>
-        <div class="muted">แสดงเฉพาะตำแหน่งที่สถานะเป็น Open</div>
+        <div class="muted">แสดงเฉพาะตำแหน่งที่สถานะเป็น Open (รองรับหลายคำ เช่น Open/OPEN/เปิดรับ)</div>
       </div>
       <button class="btn primary" onclick="document.getElementById('apply').scrollIntoView({behavior:'smooth'})">
         สมัครงาน
@@ -64,6 +75,7 @@
   <section class="card">
     <div id="summary" class="muted">กำลังโหลดข้อมูล...</div>
     <div id="jobs" class="grid"></div>
+    <div id="debug" class="debug" style="display:none"></div>
   </section>
 
   <section class="card" id="apply">
@@ -75,14 +87,35 @@
 
 <script>
 /* ================= CONFIG ================= */
+// ✅ ไฟล์ CSV ต้องอยู่โฟลเดอร์เดียวกับไฟล์นี้ และชื่อไฟล์ต้องตรง
 const CSV_URL = "./" + encodeURI("ประกาศตำแหน่งงานว่างสาขา.csv");
 
 // Microsoft Form base
 const FORM_BASE = "https://forms.office.com/r/wabJfczd4Z";
 
-// ใส่ entry id จาก pre-filled link ของคุณ
+// ใส่ field id จาก pre-filled link ของคุณ (ถ้าเป็น Microsoft Forms จริงๆ จะเป็นพารามิเตอร์แบบนั้น)
+// ถ้ายังไม่ได้ใส่ ก็ยังแสดงตำแหน่งงานได้ปกติ แค่ prefill ไม่ทำงาน
 const FORM_FIELD_POSITION = "entry.111111111"; // ตำแหน่งที่รับสมัคร
 const FORM_FIELD_BRANCH   = "entry.222222222"; // ชื่อสาขา
+
+/* ================= Helpers ================= */
+function escapeHtml(s) {
+  return (s ?? "").toString()
+    .replaceAll("&","&amp;").replaceAll("<","&lt;")
+    .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+// escape สำหรับใส่ใน onclick string
+function jsEscape(s) {
+  return (s ?? "").toString()
+    .replaceAll("\\", "\\\\")
+    .replaceAll("'", "\\'");
+}
+
+function uniq(arr) {
+  return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th"));
+}
 
 /* ================= CSV/TSV Parser ================= */
 function detectDelimiter(text) {
@@ -99,6 +132,9 @@ function detectDelimiter(text) {
 function parseDelimited(text, delimiter) {
   const rows = [];
   let row = [], cur = "", inQuotes = false;
+
+  // strip BOM at the very start safely
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
 
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
@@ -135,37 +171,84 @@ function parseDelimited(text, delimiter) {
   return rows;
 }
 
-/* ================= Header Mapping ================= */
+/* ================= Header Mapping (ROBUST) ================= */
 const norm = s => (s || "")
+  .toString()
   .toLowerCase()
-  .replace(/\uFEFF/g, "")   // BOM
-  .replace(/\s+/g, "");     // remove spaces
+  .replace(/\uFEFF/g, "")
+  .replace(/[^\p{L}\p{N}]+/gu, "") // keep letters+numbers only
+  .trim();
 
 function headerIndex(headers) {
-  const map = {};
-  headers.forEach((h, i) => { map[norm(h)] = i; });
+  const H = headers.map(h => ({ raw: (h ?? "").toString().trim(), key: norm(h) }));
 
-  const pick = (cands) => {
-    for (const c of cands) {
-      const k = norm(c);
-      if (k in map) return map[k];
+  const findCol = (exactCands, containsCands) => {
+    for (const c of exactCands) {
+      const ck = norm(c);
+      const idx = H.findIndex(x => x.key === ck);
+      if (idx !== -1) return idx;
+    }
+    for (const c of containsCands) {
+      const ck = norm(c);
+      const idx = H.findIndex(x => x.key.includes(ck));
+      if (idx !== -1) return idx;
     }
     return -1;
   };
 
-  return {
-    branchName: pick(["ชื่อสาขา","สาขา","branchname","storename"]),
-    recruitPos: pick(["ตำแหน่งที่รับสมัคร","ตำแหน่งรับสมัคร","recruitposition","applyfor"]),
-    jobStatus:  pick(["สถานะตำแหน่งงาน","สถานะ","jobstatus","status"])
-  };
-}
+  const branchName = findCol(
+    ["ชื่อสาขา","สาขา","branchname","storename","branch","store","location","สาขาที่สมัคร"],
+    ["ชื่อสาขา","สาขา","branch","store","location"]
+  );
 
-function uniq(arr) {
-  return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th"));
+  const recruitPos = findCol(
+    ["ตำแหน่งที่รับสมัคร","ตำแหน่งรับสมัคร","recruitposition","applyfor","position","jobtitle","ตำแหน่งงาน"],
+    ["ตำแหน่งที่รับสมัคร","ตำแหน่ง","รับสมัคร","position","job","title"]
+  );
+
+  const jobStatus = findCol(
+    ["สถานะตำแหน่งงาน","สถานะ","jobstatus","status","state","สถานะงาน"],
+    ["สถานะตำแหน่งงาน","สถานะ","status","jobstatus","open","close","active"]
+  );
+
+  return { branchName, recruitPos, jobStatus, headersRaw: H.map(x => x.raw) };
 }
 
 /* ================= App State ================= */
-let all = []; // already filtered to Open
+let all = []; // already filtered to Open-ish
+
+function isOpenStatus(s) {
+  const v = (s ?? "").toString().trim().toLowerCase();
+  // รองรับหลายรูปแบบ
+  return (
+    v === "open" ||
+    v === "opened" ||
+    v === "active" ||
+    v === "1" ||
+    v === "true" ||
+    v === "y" ||
+    v === "yes" ||
+    v === "เปิดรับ" ||
+    v === "เปิด" ||
+    v === "รับสมัคร" ||
+    v.includes("open")
+  );
+}
+
+function applyJob(position, branch) {
+  // ถ้ายังไม่ใส่ field id จริง จะยังเปิดฟอร์มได้ แต่ไม่ prefill
+  const hasPrefill = FORM_FIELD_POSITION && FORM_FIELD_BRANCH &&
+    FORM_FIELD_POSITION !== "entry.111111111" && FORM_FIELD_BRANCH !== "entry.222222222";
+
+  const url = hasPrefill
+    ? (FORM_BASE + "?" +
+      FORM_FIELD_POSITION + "=" + encodeURIComponent(position) + "&" +
+      FORM_FIELD_BRANCH   + "=" + encodeURIComponent(branch))
+    : FORM_BASE;
+
+  applyFrame.src = url;
+  document.getElementById("apply").scrollIntoView({behavior:"smooth"});
+}
 
 function render() {
   const qv = q.value.toLowerCase().trim();
@@ -191,35 +274,23 @@ function render() {
       </div>
     </div>
   `).join("");
-}
 
-function escapeHtml(s) {
-  return (s ?? "").toString()
-    .replaceAll("&","&amp;").replaceAll("<","&lt;")
-    .replaceAll(">","&gt;").replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-// escape สำหรับใส่ใน onclick string
-function jsEscape(s) {
-  return (s ?? "").toString()
-    .replaceAll("\\", "\\\\")
-    .replaceAll("'", "\\'");
-}
-
-function applyJob(position, branch) {
-  const url =
-    FORM_BASE + "?" +
-    FORM_FIELD_POSITION + "=" + encodeURIComponent(position) + "&" +
-    FORM_FIELD_BRANCH   + "=" + encodeURIComponent(branch);
-
-  applyFrame.src = url;
-  document.getElementById("apply").scrollIntoView({behavior:"smooth"});
+  if (!list.length) {
+    jobs.innerHTML = `
+      <div class="job">
+        <b>ไม่พบตำแหน่งตามเงื่อนไข</b>
+        <div class="muted" style="margin-top:6px">ลองล้างตัวกรอง หรือเช็กคอลัมน์สถานะว่ามีค่า Open/เปิดรับ ฯลฯ</div>
+      </div>
+    `;
+  }
 }
 
 async function loadData() {
+  debug.style.display = "none";
+  debug.textContent = "";
+
   const res = await fetch(CSV_URL + "?ts=" + Date.now(), { cache: "no-store" });
-  if (!res.ok) throw new Error("HTTP " + res.status);
+  if (!res.ok) throw new Error("โหลดไฟล์ CSV ไม่ได้ (HTTP " + res.status + "). ตรวจชื่อไฟล์/ตำแหน่งไฟล์ และต้องเปิดผ่าน Web server");
 
   const text = await res.text();
   const delim = detectDelimiter(text);
@@ -227,18 +298,32 @@ async function loadData() {
   if (!rows.length) throw new Error("ไฟล์ว่าง หรืออ่านไม่ออก");
 
   const idx = headerIndex(rows[0]);
+
   if (idx.branchName === -1 || idx.recruitPos === -1 || idx.jobStatus === -1) {
-    throw new Error("ไม่พบคอลัมน์ที่ต้องใช้ (ชื่อสาขา / ตำแหน่งที่รับสมัคร / สถานะตำแหน่งงาน)");
+    // โชว์ debug ชัดๆ
+    debug.style.display = "block";
+    debug.textContent =
+      "ERROR: หา header ไม่เจอครบ\n\n" +
+      "คอลัมน์ที่ต้องมี (อย่างใดอย่างหนึ่งใกล้เคียง):\n" +
+      "- ชื่อสาขา / สาขา / branch / store / location\n" +
+      "- ตำแหน่งที่รับสมัคร / ตำแหน่งงาน / position / jobtitle\n" +
+      "- สถานะตำแหน่งงาน / สถานะ / status / jobstatus\n\n" +
+      "Headers ที่พบในไฟล์:\n- " + (idx.headersRaw || rows[0]).join("\n- ") + "\n\n" +
+      "ตัวอย่างแถวข้อมูล 1-3:\n" +
+      JSON.stringify(rows.slice(1,4), null, 2);
+
+    throw new Error("ไม่พบคอลัมน์ที่ต้องใช้ (ดูรายละเอียดด้านล่าง)");
   }
 
-  // ✅ Filter เฉพาะ Open (trim + case-insensitive)
-  all = rows.slice(1).map(r => ({
-    branchName: r[idx.branchName] || "",
-    recruitPos: r[idx.recruitPos] || "",
-    jobStatus:  r[idx.jobStatus] || ""
+  const data = rows.slice(1).map(r => ({
+    branchName: (r[idx.branchName] ?? "").toString().trim(),
+    recruitPos: (r[idx.recruitPos] ?? "").toString().trim(),
+    jobStatus:  (r[idx.jobStatus] ?? "").toString().trim()
   }))
-  .filter(x => x.branchName || x.recruitPos)
-  .filter(x => (x.jobStatus || "").trim().toLowerCase() === "open");
+  .filter(x => x.branchName || x.recruitPos);
+
+  // ✅ Filter เฉพาะ Open-ish
+  all = data.filter(x => isOpenStatus(x.jobStatus));
 
   // เติม dropdown สาขาจากรายการ Open เท่านั้น
   filterBranch.innerHTML = `<option value="">ทุกสาขา</option>`;
@@ -248,6 +333,16 @@ async function loadData() {
     opt.textContent = b;
     filterBranch.appendChild(opt);
   });
+
+  // debug สั้นๆ เผื่ออยากเช็ก
+  debug.style.display = "block";
+  debug.textContent =
+    "โหลดสำเร็จ\n" +
+    "- delimiter: " + JSON.stringify(delim) + "\n" +
+    "- rows: " + rows.length + "\n" +
+    "- open jobs: " + all.length + "\n" +
+    "- mapped columns index: " + JSON.stringify({branchName: idx.branchName, recruitPos: idx.recruitPos, jobStatus: idx.jobStatus}) + "\n" +
+    "- headers: " + (idx.headersRaw || []).join(" | ");
 
   render();
 }
